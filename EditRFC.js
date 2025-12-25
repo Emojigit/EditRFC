@@ -68,6 +68,10 @@ $.when(mw.loader.using([
             hant: '此討論已有徵求意見模板，且機器人已經運行。本表單將修改本討論串所屬於的議題，修改將於十分鐘內應用。',
             hans: '此讨论已有征求意见模板，且机器人已经运行。本表单将修改本讨论串所属于的议题，修改将于十分钟内应用。'
         },
+        'edit-rfc-message-dryrun': {
+            hant: '試運行模式已啓用，編輯將不會提交。如希望退出試運行模式，請在主控臺將$1設爲$2。',
+            hans: '试运行模式已启用，编辑将不会提交。如希望退出试运行模式，请在控制台将$1设为$2。'
+        },
 
         'edit-rfc-summary-add-template': {
             hant: '新增徵求意見模板：$1',
@@ -339,14 +343,15 @@ $.when(mw.loader.using([
             label: mw.msg('edit-rfc-message-has-rfcid'),
             type: 'info',
         });
-
-        this.newRFCMessage.toggle(false);
-        this.noRFCIDMessage.toggle(false);
-        this.hasRFCIDMessage.toggle(false);
+        this.dryrunMessage = new OO.ui.MessageWidget({
+            label: mw.message('edit-rfc-message-dryrun', '<code>EditRFC.dryrun</code>', '<code>false</code>').parseDom(),
+            type: 'warning',
+        });
 
         this.newRFCMessage.$element.addClass('edit-rfc-message');
         this.noRFCIDMessage.$element.addClass('edit-rfc-message');
         this.hasRFCIDMessage.$element.addClass('edit-rfc-message');
+        this.dryrunMessage.$element.addClass('edit-rfc-message');
 
         this.panel.$element.append(this.newRFCMessage.$element);
         this.panel.$element.append(this.noRFCIDMessage.$element);
@@ -372,6 +377,7 @@ $.when(mw.loader.using([
                 this.newRFCMessage.toggle(false);
                 this.noRFCIDMessage.toggle(false);
                 this.hasRFCIDMessage.toggle(false);
+                this.dryrunMessage.toggle(!!EditRFC.dryrun);
 
                 for (const topic of data.topics)
                     this.rfcSelectWidget.addTag(topic, mw.msg(`edit-rfc-topic-${topic}`));
