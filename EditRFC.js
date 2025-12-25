@@ -344,7 +344,7 @@ $.when(mw.loader.using([
             type: 'info',
         });
         this.dryrunMessage = new OO.ui.MessageWidget({
-            label: mw.message('edit-rfc-message-dryrun', '<code>EditRFC.dryrun</code>', '<code>false</code>').parseDom(),
+            label: $($.parseHTML(mw.message('edit-rfc-message-dryrun', '<code>EditRFC.dryrun</code>', '<code>false</code>').plain())),
             type: 'warning',
         });
 
@@ -356,6 +356,7 @@ $.when(mw.loader.using([
         this.panel.$element.append(this.newRFCMessage.$element);
         this.panel.$element.append(this.noRFCIDMessage.$element);
         this.panel.$element.append(this.hasRFCIDMessage.$element);
+        this.panel.$element.append(this.dryrunMessage.$element);
 
         this.$body.append(this.panel.$element);
     };
