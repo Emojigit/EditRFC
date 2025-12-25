@@ -26,6 +26,10 @@ $.when(mw.loader.using([
             hant: '編輯RFC',
             hans: '编辑RFC'
         },
+        'edit-rfc-button-inprogress': {
+            hant: '正在載入……',
+            hans: '正在载入……'
+        },
 
         'edit-rfc-window-title': {
             hant: '編輯徵求意見模板',
@@ -52,6 +56,19 @@ $.when(mw.loader.using([
             hans: '由机器人填写的话题编号'
         },
 
+        'edit-rfc-message-new-rfc': {
+            hant: '此討論尚未有徵求意見模板。點按「提交」後，機器人將會在十分鐘內將此討論加入徵求意見系統。',
+            hans: '此讨论尚未有征求意见模板。点按“提交”后，机器人将在十分钟内将此讨论加入征求意见系统。'
+        },
+        'edit-rfc-message-no-rfcid': {
+            hant: '此討論已有徵求意見模板，但機器人尚未運行。本話題將在十分鐘後自動加入徵求意見系統。本表單將修改本討論串所屬於的議題。',
+            hans: '此讨论已有征求意见模板，但机器人尚未运行。本话题将在十分钟后自动加入征求意见系统。本表单将修改本讨论串所属于的议题。'
+        },
+        'edit-rfc-message-has-rfcid': {
+            hant: '此討論已有徵求意見模板，且機器人已經運行。本表單將修改本討論串所屬於的議題，修改將於十分鐘內應用。',
+            hans: '此讨论已有征求意见模板，且机器人已经运行。本表单将修改本讨论串所属于的议题，修改将于十分钟内应用。'
+        },
+
         'edit-rfc-summary-add-template': {
             hant: '新增徵求意見模板：$1',
             hans: '新增征求意见模板：$1'
@@ -60,6 +77,17 @@ $.when(mw.loader.using([
             hant: '編輯徵求意見模板：$1',
             hans: '编辑征求意见模板：$1'
         },
+
+        'edit-rfc-notify-succeed': {
+            hant: '徵求意見模板已成功更新。',
+            hans: '征求意见模板已成功更新。'
+        },
+        'edit-rfc-notify-fail': {
+            hant: '無法更新徵求意見模板：$1',
+            hans: '无法更新征求意见模板：$1'
+        },
+
+        // Topics
 
         'edit-rfc-topic-bio': {
             hant: '傳記',
@@ -178,7 +206,7 @@ $.when(mw.loader.using([
         const rfcData = findRFCInSection(content) || {};
         const rfcTopics = rfcData.topics || [];
         const rfcid = rfcData.rfcid || null;
-        return { content, revid, rfcTopics, rfcid};
+        return { content, revid, rfcTopics, rfcid };
     };
 
     const addRFCTemplate = function (content, topics, rfcId) {
@@ -189,16 +217,22 @@ $.when(mw.loader.using([
 
         // Find the first line (except empty lines and first line (the title)) that does NOT match skipMatchRegex
         const lines = content.split('\n');
-        let insertIndex = lines.length;
-        for (let i = 1; i < lines.length; i++) {
-            if (!skipMatchRegex.test(lines[i])) {
-                insertIndex = i;
+        let insertIndex = 1;
+        for (let i = lines.length - 1; i >= 1; i--) {
+            if (skipMatchRegex.test(lines[i])) {
+                insertIndex = i + 1;
                 break;
             }
         }
 
         // Insert the RFC template after last match of skipMatchRegex
         lines.splice(insertIndex, 0, constructRFCTemplate(topics, rfcId));
+
+        // If there are empty lines immediately after {{rfc}}, remove them
+        while (insertIndex + 1 < lines.length && lines[insertIndex + 1].trim() === '') {
+            lines.splice(insertIndex + 1, 1);
+        }
+
         return lines.join('\n');
     };
 
@@ -292,6 +326,32 @@ $.when(mw.loader.using([
         ]);
 
         this.panel.$element.append(fieldset.$element);
+
+        this.newRFCMessage = new OO.ui.MessageWidget({
+            label: mw.msg('edit-rfc-message-new-rfc'),
+            type: 'info',
+        });
+        this.noRFCIDMessage = new OO.ui.MessageWidget({
+            label: mw.msg('edit-rfc-message-no-rfcid'),
+            type: 'info',
+        });
+        this.hasRFCIDMessage = new OO.ui.MessageWidget({
+            label: mw.msg('edit-rfc-message-has-rfcid'),
+            type: 'info',
+        });
+
+        this.newRFCMessage.toggle(false);
+        this.noRFCIDMessage.toggle(false);
+        this.hasRFCIDMessage.toggle(false);
+
+        this.newRFCMessage.$element.addClass('edit-rfc-message');
+        this.noRFCIDMessage.$element.addClass('edit-rfc-message');
+        this.hasRFCIDMessage.$element.addClass('edit-rfc-message');
+
+        this.panel.$element.append(this.newRFCMessage.$element);
+        this.panel.$element.append(this.noRFCIDMessage.$element);
+        this.panel.$element.append(this.hasRFCIDMessage.$element);
+
         this.$body.append(this.panel.$element);
     };
 
@@ -304,8 +364,25 @@ $.when(mw.loader.using([
                 this.rfcSelectWidget.clearItems();
                 this.rfcSelectWidget.clearInput();
 
+                EditRFC.editRFCDialogInstance.rfcSelectWidget.menu.items.forEach(item => {
+                    item.setHighlighted(false);
+                    item.setSelected(false);
+                });
+
+                this.newRFCMessage.toggle(false);
+                this.noRFCIDMessage.toggle(false);
+                this.hasRFCIDMessage.toggle(false);
+
                 for (const topic of data.topics)
                     this.rfcSelectWidget.addTag(topic, mw.msg(`edit-rfc-topic-${topic}`));
+                
+                if (data.topics.length === 0) {
+                    this.newRFCMessage.toggle(true);
+                } else if (!data.rfcid || data.rfcid === '') {
+                    this.noRFCIDMessage.toggle(true);
+                } else {
+                    this.hasRFCIDMessage.toggle(true);
+                }
 
                 this.rfcIdWidget.setValue(data.rfcid || '');
             });
@@ -322,7 +399,7 @@ $.when(mw.loader.using([
     editRFCDialog.prototype.onConfirm = async function () {
         const data = this.data;
 
-        const title = data.title;
+        const title = data.pagetitle;
         const section = data.section;
         const topics = this.rfcSelectWidget.getValue();
         const rfcid = data.rfcid; // Keep existing RFC ID
@@ -337,6 +414,21 @@ $.when(mw.loader.using([
         const editSummary = constructEditSummary(data.topics, topics);
 
         console.table({ oldContent, baserevid, newContent, editSummary });
+
+        if (EditRFC.dryrun) {
+            console.log('Dry run mode - edit not submitted.');
+            mw.notify('Dry run mode - edit not submitted. Check console for more information.', { type: 'info' });
+            return;
+        }
+
+        const editStatus = await doEdit(title, section, baserevid, newContent, editSummary);
+        if (editStatus.success) {
+            mw.notify(mw.msg('edit-rfc-notify-succeed'), { type: 'success' });
+            window.location.reload();
+        } else {
+            console.error('Edit failed:', editStatus.error);
+            mw.notify(mw.msg('edit-rfc-notify-fail', editStatus.error.message), { type: 'error' });
+        }
     };
 
     // Methods to open the dialog
@@ -357,7 +449,7 @@ $.when(mw.loader.using([
         try {
             const analysis = await fetchAndAnalyseSection(title, section);
             openEditRFCDialog({
-                title: title,
+                pagetitle: title,
                 section: section,
                 content: analysis.content,
                 revid: analysis.revid,
@@ -385,7 +477,20 @@ $.when(mw.loader.using([
                 .attr('href', '#')
                 .on('click', (e) => {
                     e.preventDefault();
-                    fetchAndOpenDialog(title, section);
+                    $editrfcLink
+                        .text(mw.msg('edit-rfc-button-inprogress'))
+                        .addClass("edit-rfc-section-link-inprogress");
+                    fetchAndOpenDialog(title, section)
+                        .then(() => {
+                            $editrfcLink
+                                .text(mw.msg('edit-rfc-button'))
+                                .removeClass("edit-rfc-section-link-inprogress");
+                        })
+                        .catch(() => {
+                            $editrfcLink
+                                .text(mw.msg('edit-rfc-button'))
+                                .removeClass("edit-rfc-section-link-inprogress");
+                        });
                 })
             $('<span>')
                 .html($editrfcLink)
@@ -394,13 +499,18 @@ $.when(mw.loader.using([
         });
     });
 
-    mw.util.addCSS(`.mw-editsection  .edit-rfc-section-link::before { content: ' | '; }`);
+    mw.util.addCSS(`
+        .mw-editsection .edit-rfc-section-link::before {
+            content: ' | ';
+        }
+
+        .mw-editsection .edit-rfc-section-link-inprogress {
+            color: var(--color-placeholder,#72777d);
+            pointer-events: none;
+        }
+
+        .edit-rfc-message {
+            margin-top: 12px;
+        }
+    `);
 });
-
-/*
-v-model:input-chips="chips"
-                v-model:selected="selection"
-                :menu-items="rfcTopics"
-                :aria-label="fieldAriaLabel"
-
-                 */
