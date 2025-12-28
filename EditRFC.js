@@ -8,6 +8,19 @@
     window.EditRFC = window.EditRFC || {};
     const EditRFC = window.EditRFC;
 
+    if (!EditRFC.loadAnywhere) {
+        const wgNamespaceNumber = mw.config.get('wgNamespaceNumber');
+        const additionalTalkNamespaces = [
+            4, // Project
+            100, // Portal,
+            102, // WikiProject
+        ];
+
+        if (wgNamespaceNumber % 2 !== 1 && !additionalTalkNamespaces.includes(wgNamespaceNumber)) {
+            return;
+        }
+    }
+
     // Load dependencies
 
     const promises = [
