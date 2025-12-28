@@ -539,17 +539,17 @@
     });
 
     mw.util.addCSS(`
-            .mw-editsection .edit-rfc-section-link::before {
-                content: ' | ';
-            }
+        .mw-editsection .edit-rfc-section-link::before {
+            content: ' | ';
+        }
 
-            .mw-editsection .edit-rfc-section-link-inprogress {
-                color: var(--color-placeholder,#72777d);
-                pointer-events: none;
-            }
+        .mw-editsection .edit-rfc-section-link-inprogress {
+            color: var(--color-placeholder,#72777d);
+            pointer-events: none;
+        }
 
-            .edit-rfc-message {
-                margin-top: 12px;
-            }
-        `);
+        .edit-rfc-message {
+            margin-top: 12px;
+        }
+    `);
 })();
