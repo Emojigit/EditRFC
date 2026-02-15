@@ -547,7 +547,7 @@
             $('<span>')
                 .html($editrfcLink)
                 .addClass('edit-rfc-section-link')
-                .insertAfter($sectionLink);
+                .insertBefore($editsection.find(".mw-editsection-bracket").last());
         });
     });
 
