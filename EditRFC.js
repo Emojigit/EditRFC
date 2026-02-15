@@ -119,7 +119,7 @@
             hant: '編輯徵求意見模板',
             hans: '编辑征求意见模板'
         },
-        'edit-rfc-summary-advertisement': '// [[User:1F616EMO/EditRFC.js|EditRFC]]',
+        'edit-rfc-summary-advertisement': '// [[User:1F616EMO/EditRFC|EditRFC]]',
 
         'edit-rfc-notify-succeed': {
             hant: '徵求意見模板已成功更新。',
