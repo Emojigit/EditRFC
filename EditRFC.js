@@ -43,7 +43,8 @@
     promises.push(api.loadMessagesIfMissing([
         'comma-separator',
         'colon-separator',
-        'semicolon-separator'
+        'semicolon-separator',
+        'parentheses',
     ]));
 
     const require = await promises.shift();
@@ -55,6 +56,7 @@
     const COMMA_SEPARATOR = mw.msg('comma-separator');
     const COLON_SEPARATOR = mw.msg('colon-separator');
     const SEMICOLON_SEPARATOR = mw.msg('semicolon-separator');
+    const IN_PARENTHESES = (txt) => mw.msg('parentheses', txt);
 
     // Constants
 
@@ -83,6 +85,15 @@
         'edit-rfc-field-topics-help': {
             hant: '本討論應屬於的徵求意見主題',
             hans: '本讨论应属于的征求意见主题'
+        },
+
+        'edit-rfc-field-reason-label': {
+            hant: '修改徵求意見話題的原因',
+            hans: '修改征求意见话题的原因'
+        },
+        'edit-rfc-field-reason-help': {
+            hant: '顯示於編輯摘要的額外資訊',
+            hans: '显示於编辑摘要的额外资讯'
         },
 
         'edit-rfc-field-rfcid-label': {
@@ -300,35 +311,39 @@
         return lines.join('\n');
     };
 
-    const constructEditSummary = (oldTopics, newTopics) => {
+    const constructEditSummary = (oldTopics, newTopics, reason) => {
+        let summary;
         if (newTopics.length === 0 && oldTopics.length > 0) {
-            return mw.msg('edit-rfc-summary-remove-template')
-                + ' ' + mw.msg('edit-rfc-summary-advertisement');
-        }
-
-        if (oldTopics.length === 0) {
-            return mw.msg('edit-rfc-summary-add-template')
+            summary = mw.msg('edit-rfc-summary-remove-template');
+        } else if (oldTopics.length === 0) {
+            summary = mw.msg('edit-rfc-summary-add-template')
                 + COLON_SEPARATOR
-                + newTopics.map(topic => mw.msg(`edit-rfc-topic-${topic}`)).join(COMMA_SEPARATOR)
-                + ' ' + mw.msg('edit-rfc-summary-advertisement');
+                + newTopics.map(topic => mw.msg(`edit-rfc-topic-${topic}`)).join(COMMA_SEPARATOR);
+        } else {
+            // Generate string in format + <xxx>, <yyy>; - <aaa>, <bbb>
+            const addedTopics = newTopics.filter(topic => !oldTopics.includes(topic));
+            const removedTopics = oldTopics.filter(topic => !newTopics.includes(topic));
+
+            let summaryParts = [];
+            if (addedTopics.length > 0) {
+                summaryParts.push('+' + addedTopics.map(topic => mw.msg(`edit-rfc-topic-${topic}`)).join(COMMA_SEPARATOR));
+            }
+            if (removedTopics.length > 0) {
+                summaryParts.push('-' + removedTopics.map(topic => mw.msg(`edit-rfc-topic-${topic}`)).join(COMMA_SEPARATOR));
+            }
+
+            summary = mw.msg('edit-rfc-summary-edit-template')
+                + COLON_SEPARATOR
+                + summaryParts.join(SEMICOLON_SEPARATOR);
         }
 
-        // Generate string in format + <xxx>, <yyy>; - <aaa>, <bbb>
-        const addedTopics = newTopics.filter(topic => !oldTopics.includes(topic));
-        const removedTopics = oldTopics.filter(topic => !newTopics.includes(topic));
+        reason = reason.trim();
+        if (reason && reason !== '')
+            summary += ' ' + IN_PARENTHESES(reason);
 
-        let summaryParts = [];
-        if (addedTopics.length > 0) {
-            summaryParts.push('+' + addedTopics.map(topic => mw.msg(`edit-rfc-topic-${topic}`)).join(COMMA_SEPARATOR));
-        }
-        if (removedTopics.length > 0) {
-            summaryParts.push('-' + removedTopics.map(topic => mw.msg(`edit-rfc-topic-${topic}`)).join(COMMA_SEPARATOR));
-        }
+        summary += ' ' + mw.msg('edit-rfc-summary-advertisement');
 
-        return mw.msg('edit-rfc-summary-edit-template')
-            + COLON_SEPARATOR
-            + summaryParts.join(SEMICOLON_SEPARATOR)
-            + ' ' + mw.msg('edit-rfc-summary-advertisement');
+        return summary;
     };
 
     const doEdit = async (title, section, baserevid, content, summary) => {
@@ -383,6 +398,8 @@
             })),
         });
 
+        const rfcReasonWidget = this.rfcReasonWidget = new OO.ui.TextInputWidget();
+
         const rfcIdWidget = this.rfcIdWidget = new OO.ui.TextInputWidget({
             disabled: true,
         });
@@ -392,6 +409,11 @@
                 label: mw.msg('edit-rfc-field-topics-label'),
                 align: 'top',
                 help: mw.msg('edit-rfc-field-topics-help'),
+            }),
+            new OO.ui.FieldLayout(rfcReasonWidget, {
+                label: mw.msg('edit-rfc-field-reason-label'),
+                align: 'top',
+                help: mw.msg('edit-rfc-field-reason-help'),
             }),
             new OO.ui.FieldLayout(rfcIdWidget, {
                 label: mw.msg('edit-rfc-field-rfcid-label'),
@@ -462,6 +484,7 @@
                     this.hasRFCIDMessage.toggle(true);
                 }
 
+                this.rfcReasonWidget.setValue('');
                 this.rfcIdWidget.setValue(data.rfcid || '');
             });
     };
@@ -480,6 +503,7 @@
         const title = data.pagetitle;
         const section = data.section;
         const topics = this.rfcSelectWidget.getValue();
+        const reason = this.rfcReasonWidget.getValue();
         const rfcid = data.rfcid; // Keep existing RFC ID
 
         console.log('Submitting RFC edit');
@@ -489,7 +513,7 @@
         const baserevid = data.revid;
 
         const newContent = addRFCTemplate(oldContent, topics, rfcid);
-        const editSummary = constructEditSummary(data.topics, topics);
+        const editSummary = constructEditSummary(data.topics, topics, reason);
 
         if (newContent === oldContent) {
             mw.notify(mw.msg('edit-rfc-notify-unchanged'), { type: 'warn' });
