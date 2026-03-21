@@ -119,15 +119,27 @@
             hant: '編輯徵求意見模板',
             hans: '编辑征求意见模板'
         },
+        'edit-rfc-summary-remove-template': {
+            hant: '移除徵求意見模板',
+            hans: '移除征求意见模板'
+        },
         'edit-rfc-summary-advertisement': '// [[User:1F616EMO/EditRFC|EditRFC]]',
 
         'edit-rfc-notify-succeed': {
             hant: '徵求意見模板已成功更新。',
             hans: '征求意见模板已成功更新。'
         },
+        'edit-rfc-notify-removed': {
+            hant: '徵求意見模板已成功移除。',
+            hans: '征求意见模板已成功移除。'
+        },
         'edit-rfc-notify-fail': {
             hant: '無法更新徵求意見模板',
             hans: '无法更新征求意见模板'
+        },
+        'edit-rfc-notify-unchanged': {
+            hant: '徵求意見模板無修訂，未應用編輯。',
+            hans: '征求意见模板无修订，未应用编辑。',
         },
 
         // Topics
@@ -214,6 +226,11 @@
     };
 
     const constructRFCTemplate = (topics, rfcId) => {
+        if (topics.length === 0) {
+            if (rfcId)
+                return '<span class="anchor" id="rfc_' + rfcId + '"></span>';
+            return '';
+        }
         let template = '{{Rfc';
         topics.forEach(topic => {
             template += `|${topic}`;
@@ -258,6 +275,10 @@
             return content.replace(rfcMatchRegex, constructRFCTemplate(topics, rfcId));
         }
 
+        if (topics.length === 0) {
+            return content;
+        }
+
         // Find the first line (except empty lines and first line (the title)) that does NOT match skipMatchRegex
         const lines = content.split('\n');
         let insertIndex = 1;
@@ -280,6 +301,11 @@
     };
 
     const constructEditSummary = (oldTopics, newTopics) => {
+        if (newTopics.length === 0 && oldTopics.length > 0) {
+            return mw.msg('edit-rfc-summary-remove-template')
+                + ' ' + mw.msg('edit-rfc-summary-advertisement');
+        }
+
         if (oldTopics.length === 0) {
             return mw.msg('edit-rfc-summary-add-template')
                 + COLON_SEPARATOR
@@ -464,6 +490,11 @@
 
         const newContent = addRFCTemplate(oldContent, topics, rfcid);
         const editSummary = constructEditSummary(data.topics, topics);
+
+        if (newContent === oldContent) {
+            mw.notify(mw.msg('edit-rfc-notify-unchanged'), { type: 'warn' });
+            return;
+        }
 
         console.table({ oldContent, baserevid, newContent, editSummary });
 
